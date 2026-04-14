@@ -50,6 +50,21 @@ DEEPGRAM_ENDPOINTING_MS=300
 # Debug
 PIPELINE_DEBUG=false
 # Set to true to log every stage boundary to console.
+
+
+# Self-teaching memory
+SELF_TEACHING_ENABLED=true
+# Default: true. Set false to disable memory capture/injection.
+
+SELF_TEACHING_FILE=.self-teaching-lessons.json
+# Default: ./.self-teaching-lessons.json. Local JSON memory store.
+
+SELF_TEACHING_MAX_LESSONS=200
+# Default: 200. Max lessons kept in local memory file.
+
+SELF_TEACHING_CONTEXT_LIMIT=5
+# Default: 5. Max related lessons injected into each prompt.
+
 ```
 
 ## .env validation
