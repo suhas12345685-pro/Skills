@@ -120,6 +120,17 @@ class VoicePipeline extends EventEmitter {
     if (this.chunker) this.chunker.reset()
     this.emit('interrupted')
   }
+
+  // Manual self-teaching hook for host apps
+  teach(lessonText) {
+    if (!this.llm || typeof this.llm.teach !== 'function') {
+      console.warn('[voice-pipeline] teach() ignored because the LLM stage is not initialized yet.')
+      return
+    }
+
+    this.llm.teach(lessonText)
+    this.emit('learned', lessonText)
+  }
 }
 
 const pipeline = new VoicePipeline()

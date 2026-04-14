@@ -7,6 +7,7 @@
 
 require('dotenv').config()
 const { EventEmitter } = require('events')
+const { SelfTeacher } = require('./self_teacher')
 
 const REQUIRED = ['LLM_PROVIDER', 'LLM_API_KEY', 'LLM_MODEL']
 const missing = REQUIRED.filter(k => !process.env[k] && k !== 'LLM_API_KEY')
@@ -27,6 +28,9 @@ class LLMStream extends EventEmitter {
     super()
     this.controller = null
     this.systemPrompt = 'You are a helpful assistant. Respond concisely in 1-3 sentences.'
+    this.selfTeachingEnabled = process.env.SELF_TEACHING_ENABLED !== 'false'
+    this.selfTeacher = this.selfTeachingEnabled ? new SelfTeacher() : null
+    this.activeResponse = null
   }
 
   async send(userText) {
@@ -52,12 +56,18 @@ class LLMStream extends EventEmitter {
       delete headers['Authorization']
     }
 
+    const effectiveSystemPrompt = this.selfTeacher
+      ? this.selfTeacher.buildSystemPrompt(this.systemPrompt, userText)
+      : this.systemPrompt
+
+    this.activeResponse = { userText, assistantText: '' }
+
     const body = provider === 'anthropic'
       ? JSON.stringify({
           model: process.env.LLM_MODEL,
           max_tokens: 300,
           stream: true,
-          system: this.systemPrompt,
+          system: effectiveSystemPrompt,
           messages: [{ role: 'user', content: userText }]
         })
       : JSON.stringify({
@@ -65,7 +75,7 @@ class LLMStream extends EventEmitter {
           max_tokens: 300,
           stream: true,
           messages: [
-            { role: 'system', content: this.systemPrompt },
+            { role: 'system', content: effectiveSystemPrompt },
             { role: 'user', content: userText }
           ]
         })
@@ -100,7 +110,7 @@ class LLMStream extends EventEmitter {
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue
         const data = line.slice(6).trim()
-        if (data === '[DONE]') { this.emit('done'); return }
+        if (data === '[DONE]') { this._finalizeTeaching('stream_done'); this.emit('done'); return }
 
         try {
           const json = JSON.parse(data)
@@ -114,19 +124,44 @@ class LLMStream extends EventEmitter {
 
           if (token) {
             if (process.env.PIPELINE_DEBUG === 'true') process.stderr.write(token)
+            if (this.activeResponse) this.activeResponse.assistantText += token
             this.emit('token', token)
           }
         } catch (_) { /* partial JSON line, ignore */ }
       }
     }
 
+    this._finalizeTeaching('stream_ended')
     this.emit('done')
+  }
+
+
+  _finalizeTeaching(source = 'conversation') {
+    if (!this.selfTeacher || !this.activeResponse) return
+
+    const { userText, assistantText } = this.activeResponse
+    this.activeResponse = null
+
+    if (assistantText && assistantText.trim()) {
+      this.selfTeacher.recordInteraction({ userText, assistantText, source })
+    }
+  }
+
+  teach(lessonText) {
+    if (!this.selfTeacher || !lessonText || !lessonText.trim()) return
+    this.selfTeacher.addLesson({
+      title: 'Manual lesson',
+      lesson: lessonText.trim(),
+      keywords: lessonText.toLowerCase().match(/[a-z][a-z0-9_-]{2,}/g) || [],
+      source: 'manual'
+    })
   }
 
   abort() {
     if (this.controller) {
       this.controller.abort()
       this.controller = null
+      this._finalizeTeaching('aborted')
     }
   }
 }

@@ -27,6 +27,7 @@ The pipeline: Mic → ffmpeg resample → Deepgram STT → LLM → Sentence chun
 3. **Step-by-step build**: Execute scripts 01–07 in order, stress-testing each before proceeding.
 4. **Kill switch**: Export a `stop()` function the host app calls to instantly halt the pipeline.
 5. **Env wiring**: Write required keys to the project's `.env` file.
+6. **Self-teaching memory**: Persist short lessons from successful interactions and reuse them in future prompts.
 
 ## Critical Rules
 
@@ -35,6 +36,7 @@ The pipeline: Mic → ffmpeg resample → Deepgram STT → LLM → Sentence chun
 - Never stream raw LLM tokens to TTS — buffer to sentence boundaries first.
 - TTS output (MP3) must be decoded to PCM before writing to VB-Cable.
 - The kill switch must be IPC-based, not `globalShortcut` (Electron-only).
+- Self-teaching memory must stay local-only (JSON file); never silently sync to remote storage.
 
 ## Execution Order
 
