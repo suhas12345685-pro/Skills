@@ -1,0 +1,23 @@
+{
+  "name": "voice-pipeline",
+  "version": "1.0.1",
+  "description": "Real-time mic → AI brain → virtual cable audio pipeline",
+  "main": "index.js",
+  "scripts": {
+    "list-devices": "node scripts/01_list_devices.js",
+    "test-capture": "node scripts/02_capture_resample.js",
+    "test-stt": "node scripts/03_deepgram_ws.js",
+    "test-llm": "node scripts/04_llm_stream.js",
+    "test-chunker": "node scripts/05_sentence_chunker.js",
+    "test-tts": "node scripts/06_tts_ws.js",
+    "test-pcm": "node scripts/07_pcm_write.js",
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "ws": "^8.0.0"
+  }
+}
